@@ -12,14 +12,6 @@
     <StartupObject />
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <OutputPath>C:\Users\sewer\Desktop\Reloaded-II\Mods\sonicheroes.utils.oneredirector\</OutputPath>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>C:\Users\sewer\Desktop\Reloaded-II\Mods\sonicheroes.utils.oneredirector\</OutputPath>
-  </PropertyGroup>
-
   <ItemGroup>
     <None Remove="ModConfig.json" />
     <None Remove="Preview.png" />

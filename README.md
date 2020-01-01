@@ -1,89 +1,72 @@
 <div align="center">
-	<h1>CRIWARE AFS Archive Redirector</h1>
+	<h1>Sonic Heroes ONE Archive Redirector</h1>
 	<img src="https://i.imgur.com/BjPn7rU.png" width="150" align="center" />
 	<br/> <br/>
-	<strong>At the Filesystem Level!?!<br/>
-	Are you kidding me?<br/></strong>
-<b>Id: reloaded.utils.afsredirector</b>
+	<strong>Game can load ONE archives from memory?<br/>
+	No problem, here's another one at the FileSystem level.<br/></strong>
+<b>Id: sonicheroes.utils.oneredirector</b>
 </div>
 
-# CRIWARE AFS Redirector
+# ONE Redirector
 
-This is an experimental project and completely functional proof of concept. Manipulating and redirecting accesses to contents of AFS archives with *ZERO* knowledge of the target application's code.
+This is an experimental project and completely functional proof of concept. This mod creates .ONE archives, "Just in Time", as the game requests to read them from disk. Using some hooks, we then make the game load the file from memory instead of from disk.
+
+Essentially, this allows for loading of files from outside .ONE archives, allowing mods to mix and match files rather than having one mod's files replace another mod's outright.
+
+All done with *ZERO* knowledge of game code, for fun.
 
 # Table of Contents
 - [Supported Applications](#supported-applications)
 - [How to Use](#how-to-use)
-		- [Example(s)](#examples)
-- [How it Works (Technical Summary)](#how-it-works-technical-summary)
-	- [Preface](#preface)
-	- [Operation (Simplified)](#operation-simplified)
+		- [How to Use: Adding/Replacing Files](#how-to-use-addingreplacing-files)
+		- [How to Use: Removing Files](#how-to-use-removing-files)
+		- [Developing Mods: A Tip](#developing-mods-a-tip)
+- [How it Works](#how-it-works)
 
 # Supported Applications
 
-In theory, everything. 
-Every single Windows process accessing AFS archives should be affected.
-
-In practice, it's probably close to that. This has been tested with the following:
 - Sonic Heroes (PC)
-- Sonic Adventure 2 (PC)
-- Shadow The Hedgehog (Japamese, GameCube, Dolphin Emulator, Running from FileSystem)
-- Some Random Old AFS Archive Extraction Utility (Why not?)
+
+Probably works with some standalone applications (e.g. `HeroesONE-R`) and the console versions of the game, if emulated and ran from filesystem.
 
 # How to Use
 
 A. Add a dependency on this mod in your mod configuration.
 
 ```json
-"ModDependencies": ["reloaded.utils.afsredirector"]
+"ModDependencies": ["sonicheroes.utils.oneredirector"]
 ```
 
-B. Add a folder called `AfsRedirector` in your mod folder.
-C. Make folders corresponding to AFS Archive names, e.g. `SH_VOICE_E.AFS`.
+B. Add a folder called `OneRedirector` in your mod folder.
+C. Make folders corresponding to ONE Archive names, e.g. `s01_h.one`.
 
-Files inside AFS Archives are accessed by index, i.e. order in the archive: 0, 1, 2, 3 etc.
-Inside each folder make files, with names corresponding to the file's index.
+Then, simply place files in the directory.
 
-### Example(s)
+### How to Use: Adding/Replacing Files
+In order to add (or replace an existing) file, simply place the file in your ONE directory.
+Both PRS compressed and uncompressed files are supported.
 
-To replace a file in an archive named `EVENT_ADX_E.AFS`...
+Uncompressed files should have the full name and extension of the file `SHADOW_LOCATOR.DFF`.
+Compressed files should end with the additional extension, `.prs` e.g. `SHADOW_LOCATOR.DFF.PRS`.
 
-Adding `AfsRedirector/EVENT_ADX_E.AFS/0.adx` to your mod would replace the 0th item in the original AFS Archive.
+### How to Use: Removing Files
+In order to delete a file, create an empty file with the name of the file and an additional extension `.del`.
 
-Adding `AfsRedirector/EVENT_ADX_E.AFS/32.aix` to your mod would replace the 32th item in the original AFS Archive.
+e.g. Adding `SHADOW_LOCATOR.DFF.DEL` would prevent `SHADOW_LOCATOR.DFF` from being added to the ONE archive.
 
-**Note 1:**
-Generally, for audio playback, you can place ADX/AHX/AIX files interchangeably, e.g. You can place a `32.adx` file even if the original AFS archive has an AIX file inside in that slot. 
+Note: The archive builder works in the order `Delete` then `Add`, so if a file is first deleted, it can be re-added by either the same or another mod.
 
-**Note 2:** A common misconception is that AFS archives can only be used to store audio. This is in fact wrong. AFS archives can store any kind of data, it's just that they're almost exclusively used to store audio.
+### Developing Mods: A Tip
+Disabled by default to improve performance (caching), the configuration has a setting allows for the replacement of files as the game is running exiting the game  (i.e. New ONE archive is created every time it is requested from disk.)
 
+This means that, when enabled, if you e.g. replace the files for a character model, exit the stage and start the stage, the new model would load.
 
-# How it Works (Technical Summary)
+Good luck 😛
 
-*Essentially, this project emulates real AFS archives at the Windows API level.*
+# How it Works
 
-## Preface
-On Windows, when an application wants to operate on a file, a `handle` must first be opened through the use of the `CreateFile` API and/or its derivatives. All derivatives will essentially, at some point call the internal `NtCreateFile` API. 
+This project is a spinoff of my [AFS FileSystem Redirector](https://github.com/Sewer56/AfsFsRedir.ReloadedII).
 
-Subsequently for reading information from files, `ReadFile` is used (and its derivatives) to read data from files to a buffer. These essentially at some point call `NtReadFile`.
+It is somewhat simplified, gimped here as the file is read in all at once and as such I don't have to worry about the file being read in chunks.
 
-## Operation (Simplified)
-
-**Creating Virtual Archives**
-This project hooks, `NtCreateFile`. When `NtCreateFile` is called, the file is checked to be an AFS (by first checking extension, then 4 bytes of header if extension matches).
-
-If the header check succeeds, a `"Virtual AFS"` is built. The contents of the full original AFS file header are read in. Then, a new AFS header is built (for an archive that does not actually exist!) based upon the original header and the new files requested from other mods. 
-
-This header is a completely valid header and would represent an AFS archive if it was repacked in with the new files.
-
-A dictionary is also created, which maps file offsets in the `"Virtual AFS"` to file offsets and lengths in either the original AFS file or custom external files 
-
-**Emulating Archives**
-After creating a `"Virtual AFS"`, its contents need to be read in by the application.
-To achieve this, `NtReadFile` is hooked to feed custom information.
-
-If the process wants to read from an AFS file, for which a `"Virtual AFS"`exists, the call to the original `NtReadFile` function is skipped. Instead, custom data is written to the buffer.
-
-If the requested read offset is between the start and end of the header, data from the `"Virtual AFS"` header at that offset is returned.
-
-If the requested read offset is outside of the header, the offset is looked up against the dictionary in the `"Virtual AFS"`, and data is returned either directly from the original AFS file or an external source.
+Many of the basic principles from before still apply. Only large conceptual difference is we actually build the ONE archive and keep it in memory to feed to the game, as generally ONE archives are very small < 3MB.

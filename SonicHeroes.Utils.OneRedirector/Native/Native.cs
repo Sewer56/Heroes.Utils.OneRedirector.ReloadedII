@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 
-namespace Reloaded.Utils.AfsRedirector.Native
+namespace SonicHeroes.Utils.OneRedirector.Native
 {
     public unsafe class Native
     {
@@ -35,6 +35,22 @@ namespace Reloaded.Utils.AfsRedirector.Native
         [Reloaded.Hooks.Definitions.X64.Function(Reloaded.Hooks.Definitions.X64.CallingConventions.Microsoft)]
         [Reloaded.Hooks.Definitions.X86.Function(Reloaded.Hooks.Definitions.X86.CallingConventions.Stdcall)]
         public delegate int NtSetInformationFile(IntPtr hFile, out IO_STATUS_BLOCK ioStatusBlock, void* fileInformation, uint length, FileInformationClass fileInformationClass);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        [Reloaded.Hooks.Definitions.X64.Function(Reloaded.Hooks.Definitions.X64.CallingConventions.Microsoft)]
+        [Reloaded.Hooks.Definitions.X86.Function(Reloaded.Hooks.Definitions.X86.CallingConventions.Stdcall)]
+        public delegate int NtQueryInformationFile(IntPtr hFile, out IO_STATUS_BLOCK ioStatusBlock, void* fileInformation, uint length, FileInformationClass fileInformationClass);
+
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct FILE_STANDARD_INFORMATION
+        {
+            public long AllocationSize;
+            public long EndOfFile;
+            public int NumberOfLinks;
+            public byte DeletePending;
+            public byte Directory;
+        };
 
         /// <summary>
         /// A driver sets an IRP's I/O status block to indicate the final status of an I/O request, before calling IoCompleteRequest for the IRP.
@@ -162,7 +178,7 @@ namespace Reloaded.Utils.AfsRedirector.Native
                 {
                     if (buffer != IntPtr.Zero)
                     {
-                        Memory.Sources.Memory.CurrentProcess.ReadRaw(buffer, out byte[] uniString, Length);
+                        Reloaded.Memory.Sources.Memory.CurrentProcess.ReadRaw(buffer, out byte[] uniString, Length);
                         return Encoding.Unicode.GetString(uniString);
                     }
 

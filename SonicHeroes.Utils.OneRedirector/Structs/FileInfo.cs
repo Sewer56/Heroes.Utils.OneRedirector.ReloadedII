@@ -1,4 +1,4 @@
-﻿namespace Reloaded.Utils.AfsRedirector.Structs
+﻿namespace SonicHeroes.Utils.OneRedirector.Structs
 {
     public class FileInfo
     {

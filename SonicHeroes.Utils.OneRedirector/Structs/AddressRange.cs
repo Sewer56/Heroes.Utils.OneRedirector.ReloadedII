@@ -1,4 +1,4 @@
-﻿namespace Reloaded.Utils.AfsRedirector.Structs
+﻿namespace SonicHeroes.Utils.OneRedirector.Structs
 {
     /// <summary>
     /// Defines a physical address range with a minimum and maximum address.

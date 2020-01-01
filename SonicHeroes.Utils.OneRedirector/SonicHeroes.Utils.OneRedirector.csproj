@@ -4,12 +4,20 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <AssemblyName>Reloaded.Utils.AfsRedirector</AssemblyName>
-    <RootNamespace>Reloaded.Utils.AfsRedirector</RootNamespace>
+    <AssemblyName>SonicHeroes.Utils.OneRedirector</AssemblyName>
+    <RootNamespace>SonicHeroes.Utils.OneRedirector</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon />
     <OutputType>WinExe</OutputType>
     <StartupObject />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>C:\Users\sewer\Desktop\Reloaded-II\Mods\sonicheroes.utils.oneredirector\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>C:\Users\sewer\Desktop\Reloaded-II\Mods\sonicheroes.utils.oneredirector\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +41,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Submodules\AfsLib\AFSLib\AFSLib.csproj" />
+    <ProjectReference Include="..\Submodules\Heroes.SDK\Heroes.SDK.Library\Heroes.SDK.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <NativeLibs Remove="OneHook.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <NativeLibs Remove="OneFileTracker.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <NativeLibs Remove="OneBuilderCollection.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Configuration\" />
   </ItemGroup>
 
 </Project>

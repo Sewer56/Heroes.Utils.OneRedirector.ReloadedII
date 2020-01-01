@@ -2,25 +2,30 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using AFSLib.AfsStructs;
+using Heroes.SDK.Definitions.Structures.Archive.OneFile;
 using Reloaded.Hooks.Definitions;
 using Reloaded.Memory;
-using Reloaded.Utils.AfsRedirector.Structs;
-using FileInfo = Reloaded.Utils.AfsRedirector.Structs.FileInfo;
+using SonicHeroes.Utils.OneRedirector.Structs;
+using FileInfo = SonicHeroes.Utils.OneRedirector.Structs.FileInfo;
 
-namespace Reloaded.Utils.AfsRedirector
+namespace SonicHeroes.Utils.OneRedirector
 {
-    public unsafe class AfsFileTracker
+    public unsafe class OneFileTracker
     {
         /// <summary>
-        /// Executed when a handle to an AFS file is opened.
+        /// Executed when a handle to a file is opened.
         /// </summary>
-        public event AfsHandleOpened OnAfsHandleOpened = (path, handle) => { };
+        public event HandleOpened OnOneHandleOpened = (path, handle) => { };
 
         /// <summary>
-        /// Executed after data is read from an AFS file.
+        /// Executed when application queries for the file size
         /// </summary>
-        public event AfsDataRead OnAfsReadData = (IntPtr handle, byte* buffer, uint length, long offset, out int numReadBytes) =>
+        public event GetFileSize OnGetFileSize = (handle) => -1;
+
+        /// <summary>
+        /// Executed after data is read from a file.
+        /// </summary>
+        public event DataRead OnOneReadData = (IntPtr handle, byte* buffer, uint length, long offset, out int numReadBytes) =>
         {
             numReadBytes = 0;
             return false;
@@ -30,21 +35,24 @@ namespace Reloaded.Utils.AfsRedirector
         /// Maps file handles to file paths.
         /// </summary>
         private ConcurrentDictionary<IntPtr, FileInfo> _handleToInfoMap = new ConcurrentDictionary<IntPtr, FileInfo>();
-        private Dictionary<string, bool> _isAfsFileCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, bool> _isOneFileCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
         private IHook<Native.Native.NtCreateFile> _createFileHook;
         private IHook<Native.Native.NtReadFile> _readFileHook;
         private IHook<Native.Native.NtSetInformationFile> _setFilePointerHook;
+        private IHook<Native.Native.NtQueryInformationFile> _getFileSizeHook;
 
         private object _createLock = new object();
-        private object _setInfoLock = new object();
         private object _readLock = new object();
+        private object _setInfoLock = new object();
+        private object _getInfoLock = new object();
 
-        public AfsFileTracker(NativeFunctions functions)
+        public OneFileTracker(NativeFunctions functions)
         {
             _createFileHook = functions.NtCreateFile.Hook(NtCreateFileImpl).Activate();
             _readFileHook = functions.NtReadFile.Hook(NtReadFileImpl).Activate();
-            _setFilePointerHook = functions.SetFilePointer.Hook(SetInformationFileImpl).Activate();
+            _setFilePointerHook = functions.NtSetInformationFile.Hook(SetInformationFileImpl).Activate();
+            _getFileSizeHook = functions.NtQueryInformationFile.Hook(QueryInformationFileImpl).Activate();
 
             // TODO: Hook NtClose
             // Problem: Native->Managed Transition hits NtClose in .NET Core, so our hook code is never hit.
@@ -52,6 +60,7 @@ namespace Reloaded.Utils.AfsRedirector
             // Solution: Write custom ASM to solve the problem, see NtClose branch.
         }
 
+        
         /// <summary>
         /// Tries to get the information for a file behind a handle.
         /// </summary>
@@ -66,6 +75,32 @@ namespace Reloaded.Utils.AfsRedirector
             return true;
         }
 
+        private int QueryInformationFileImpl(IntPtr hfile, out Native.Native.IO_STATUS_BLOCK ioStatusBlock, void* fileInformation, uint length, Native.Native.FileInformationClass fileInformationClass)
+        {
+            lock (_getInfoLock)
+            {
+                if (_handleToInfoMap.ContainsKey(hfile) && fileInformationClass == Native.Native.FileInformationClass.FileStandardInformation)
+                {
+                    var result      = _getFileSizeHook.OriginalFunction(hfile, out ioStatusBlock, fileInformation, length, fileInformationClass);
+                    var information = (Native.Native.FILE_STANDARD_INFORMATION*)fileInformation;
+                    var newFileSize = OnGetFileSize(hfile);
+                    if (newFileSize != -1)
+                    {
+                        information->EndOfFile = newFileSize;
+                        information->AllocationSize = Utilities.RoundUp(newFileSize, 4096);
+                    }
+
+#if DEBUG
+                    Console.WriteLine($"[ONEHook] QueryInformationFile: Alloc Size: {information->AllocationSize}, EndOfFile: {information->EndOfFile}");
+#endif
+                    
+                    return result;
+                }
+
+                return _getFileSizeHook.OriginalFunction(hfile, out ioStatusBlock, fileInformation, length, fileInformationClass);
+            }
+        }
+
         private int SetInformationFileImpl(IntPtr hfile, out Native.Native.IO_STATUS_BLOCK ioStatusBlock, void* fileInformation, uint length, Native.Native.FileInformationClass fileInformationClass)
         {
             lock (_setInfoLock)
@@ -77,6 +112,7 @@ namespace Reloaded.Utils.AfsRedirector
                 }
 
                 return _setFilePointerHook.OriginalFunction(hfile, out ioStatusBlock, fileInformation, length, fileInformationClass);
+
             }
         }
 
@@ -88,15 +124,15 @@ namespace Reloaded.Utils.AfsRedirector
                 {
                     long offset          = _handleToInfoMap[handle].FilePointer;
                     long requestedOffset = byteOffset != (void*) 0 ? *byteOffset : -1;
-                    #if DEBUG
-                    Console.WriteLine($"[AFSHook] Read Request, Buffer: {(long)buffer:X}, Length: {length}, Offset (via SetInformationFile): {offset}, Requested Offset (Optional): {requestedOffset}");
-                    #endif
+#if DEBUG
+                    Console.WriteLine($"[ONEHook] Read Request, Buffer: {(long)buffer:X}, Length: {length}, Offset (via SetInformationFile): {offset}, Requested Offset (Optional): {requestedOffset}");
+#endif
                     
                     DisableRedirectionHooks();
                     bool result;
                     int numReadBytes;
-                    result = requestedOffset != -1 ? OnAfsReadData(handle, buffer, length, requestedOffset, out numReadBytes) 
-                                                   : OnAfsReadData(handle, buffer, length, offset, out numReadBytes);
+                    result = requestedOffset != -1 ? OnOneReadData(handle, buffer, length, requestedOffset, out numReadBytes) 
+                                                   : OnOneReadData(handle, buffer, length, offset, out numReadBytes);
                     EnableRedirectionHooks();
 
                     if (result)
@@ -123,18 +159,18 @@ namespace Reloaded.Utils.AfsRedirector
                 if (!TryGetFullPath(oldFileName, out var newFilePath))
                     return _createFileHook.OriginalFunction(out handle, access, ref objectAttributes, ref ioStatus, ref allocSize, fileAttributes, share, createDisposition, createOptions, eaBuffer, eaLength);
 
-                // Check if AFS file and register if it is.
-                if (newFilePath.Contains(Constants.AfsExtension, StringComparison.OrdinalIgnoreCase))
+                // Check if ONE file and register if it is.
+                if (newFilePath.Contains(Constants.OneExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     var result = _createFileHook.OriginalFunction(out handle, access, ref objectAttributes, ref ioStatus, ref allocSize, fileAttributes, share, createDisposition, createOptions, eaBuffer, eaLength);
                     DisableRedirectionHooks();
-                    if (IsAfsFile(newFilePath))
+                    if (IsOneFile(newFilePath))
                     {
-                        #if DEBUG
-                        Console.WriteLine($"[AFSHook] AFS File Handle Opened: {handle}, File: {newFilePath}");
-                        #endif
+#if DEBUG
+                        Console.WriteLine($"[ONEHook] ONE Handle Opened: {handle}, File: {newFilePath}");
+#endif
                         _handleToInfoMap[handle] = new FileInfo(newFilePath, 0);
-                        OnAfsHandleOpened(handle, newFilePath);
+                        OnOneHandleOpened(handle, newFilePath);
                     }
                     EnableRedirectionHooks();
                     return result;
@@ -146,9 +182,9 @@ namespace Reloaded.Utils.AfsRedirector
                 if (_handleToInfoMap.ContainsKey(handle))
                 {
                     _handleToInfoMap.TryRemove(handle, out var value);
-                    #if DEBUG
-                    Console.WriteLine($"[AFSHook] Removed old disposed handle: {handle}, File: {value.FilePath}");
-                    #endif
+#if DEBUG
+                    Console.WriteLine($"[ONEHook] Removed old disposed handle: {handle}, File: {value.FilePath}");
+#endif
                 }
 
                 return ntStatus;
@@ -168,26 +204,27 @@ namespace Reloaded.Utils.AfsRedirector
         }
 
         /// <summary>
-        /// Checks if a file at a specified path is an AFS archive.
+        /// Checks if a file at a specified path is an ONE archive.
         /// </summary>
-        private bool IsAfsFile(string filePath)
+        private bool IsOneFile(string filePath)
         {
-            if (_isAfsFileCache.ContainsKey(filePath))
-                return _isAfsFileCache[filePath];
+            if (_isOneFileCache.ContainsKey(filePath))
+                return _isOneFileCache[filePath];
 
             if (!File.Exists(filePath))
                 return false;
 
-            using FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, sizeof(AfsHeader));
-            
-            var data     = new byte[sizeof(AfsHeader)];
+            using FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, sizeof(OneArchiveHeader));
+
+            var data     = new byte[sizeof(OneArchiveHeader)];
             var dataSpan = data.AsSpan();
             stream.Read(dataSpan);
-            Struct.FromArray(dataSpan, out AfsHeader header);
-            
-            bool isAfsFile = header.IsAfsArchive;
-            _isAfsFileCache[filePath] = isAfsFile;
-            return isAfsFile;
+            Struct.FromArray(dataSpan, out OneArchiveHeader header);
+
+            var sizeOfFile = stream.Seek(0, SeekOrigin.End);
+            bool isOneFile = header.FileSize + sizeof(OneArchiveHeader) == sizeOfFile;
+            _isOneFileCache[filePath] = isOneFile;
+            return isOneFile;
         }
 
         /// <summary>
@@ -208,7 +245,8 @@ namespace Reloaded.Utils.AfsRedirector
             return false;
         }
 
-        public delegate void AfsHandleOpened(IntPtr handle, string filePath);
-        public delegate bool AfsDataRead(IntPtr handle, byte* buffer, uint length, long offset, out int numReadBytes);
+        public delegate int GetFileSize(IntPtr handle);
+        public delegate void HandleOpened(IntPtr handle, string filePath);
+        public delegate bool DataRead(IntPtr handle, byte* buffer, uint length, long offset, out int numReadBytes);
     }
 }

@@ -1,7 +1,7 @@
 # Project Output Paths
 $modOutputPath = "Release"
-$solutionName = "Reloaded.Utils.AfsRedirector/Reloaded.Utils.AfsRedirector.csproj"
-$publishName = "reloaded.utils.afsredirector.zip"
+$solutionName = "SonicHeroes.Utils.OneRedirector/SonicHeroes.Utils.OneRedirector.csproj"
+$publishName = "sonicheroes.utils.oneredirector.zip"
 $publishDirectory = "Publish"
 
 [Environment]::CurrentDirectory = $PWD

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using csharp_prs;
+using Heroes.SDK;
 
 namespace SonicHeroes.Utils.OneRedirector.One
 {
@@ -35,7 +35,7 @@ namespace SonicHeroes.Utils.OneRedirector.One
         public byte[] GetDataCompressed(int searchBufferSize = 256)
         {
             var data = GetData();
-            return !IsCompressed ? Prs.Compress(data, searchBufferSize) : data;
+            return !IsCompressed ? SDK.Prs.Compress(data, searchBufferSize) : data;
         }
     }
 }

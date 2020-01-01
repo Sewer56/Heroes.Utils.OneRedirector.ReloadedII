@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
+using csharp_prs_interfaces;
+using Heroes.SDK;
 using Reloaded.Mod.Interfaces;
 using Reloaded.Mod.Interfaces.Internal;
 using SonicHeroes.Utils.OneRedirector.Configuration;
@@ -20,7 +22,9 @@ namespace SonicHeroes.Utils.OneRedirector
         {
             _modLoader = (IModLoader)loader;
             _modLoader.GetController<IReloadedHooks>().TryGetTarget(out var hooks);
+            _modLoader.GetController<IPrsInstance>().TryGetTarget(out var prsInstance);
             Logger = (ILogger) _modLoader.GetLogger();
+            SDK.Init(hooks, prsInstance);
 
             /* Your mod code starts here. */
             var configurator = new Configurator(_modLoader.GetDirectoryForModId("sonicheroes.utils.oneredirector"));

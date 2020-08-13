@@ -38,6 +38,7 @@ A. Add a dependency on this mod in your mod configuration.
 ```
 
 B. Add a folder called `OneRedirector` in your mod folder.
+
 C. Make folders corresponding to ONE Archive names, e.g. `s01_h.one`.
 
 Then, simply place files in the directory.

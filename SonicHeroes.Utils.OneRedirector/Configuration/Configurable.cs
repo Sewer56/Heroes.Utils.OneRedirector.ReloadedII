@@ -14,7 +14,7 @@ namespace SonicHeroes.Utils.OneRedirector.Configuration
     {
         // Default Serialization Options
         // If you wish to change the serializer used, refer to Reloaded.Messaging documentation: https://github.com/Reloaded-Project/Reloaded.Messaging
-        public static JsonSerializerOptions SerializerOptions { get; } = new JsonSerializerOptions()
+        public static JsonSerializerOptions SerializerOptions { get; } = new()
         {
             Converters = { new JsonStringEnumConverter() },
             WriteIndented = true
@@ -90,7 +90,7 @@ namespace SonicHeroes.Utils.OneRedirector.Configuration
         /// Safety lock for when changed event gets raised twice on file save.
         /// </summary>
         [Browsable(false)]
-        private static object _readLock = new object();
+        private static readonly object _readLock = new();
 
         /// <summary>
         /// Loads a specified configuration from the hard disk, or creates a default if it does not exist.

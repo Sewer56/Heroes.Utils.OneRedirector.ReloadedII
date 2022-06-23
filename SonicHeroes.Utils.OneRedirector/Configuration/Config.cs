@@ -16,5 +16,6 @@ public class Config : Configurable<Config>
 
     [DisplayName("Always Build Archives")]
     [Description("Rebuilds the .ONE archive every time the game opens the files. This allows you to swap out files while the game is running at the expense or more time taken to load the file(s).")]
+    [DefaultValue(false)]
     public bool AlwaysBuildArchive { get; set; } = false;
 }

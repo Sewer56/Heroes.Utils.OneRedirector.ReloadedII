@@ -2,7 +2,7 @@
   "ModId": "sonicheroes.utils.oneredirector",
   "ModName": "Generic Heroes ONE Archive Redirector",
   "ModAuthor": "Sewer56",
-  "ModVersion": "1.0.2",
+  "ModVersion": "1.1.0",
   "ModDescription": "Experimental Windows FileSystem level hook allowing redirection of Sonic Heroes ONE archive contents.",
   "ModDll": "SonicHeroes.Utils.OneRedirector.dll",
   "ModIcon": "Preview.png",

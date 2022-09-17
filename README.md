@@ -9,6 +9,8 @@
 
 # ONE Redirector
 
+Archived. Superseded by [FileEmulationFramework](https://github.com/Sewer56/FileEmulationFramework).
+
 This is an experimental project and completely functional proof of concept. This mod creates .ONE archives, "Just in Time", as the game requests to read them from disk. Using some hooks, we then make the game load the file from memory instead of from disk.
 
 Essentially, this allows for loading of files from outside .ONE archives, allowing mods to mix and match files rather than having one mod's files replace another mod's outright.
